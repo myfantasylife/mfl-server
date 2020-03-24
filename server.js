@@ -1,31 +1,99 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+
 const app = express();
-const APP_PORT = 8000;
 
-app.use(bodyParser.urlencoded({ extended: true })); // Extract data from form element and add them to body property in the request object
+const urlencodedParser = bodyParser.urlencoded({
+    extended: true
+});
+app.use(urlencodedParser);
+app.use(bodyParser.json());
 
-app.listen(APP_PORT, () => console.log(`Listening on port ${APP_PORT}`));
-
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html')
-    // Note: __dirname is directory that contains the JavaScript source code. Try logging it and see what you get!
-    // Mine was '/Users/zellwk/Projects/demo-repos/crud-express-mongo' for this app.
+// CORS
+app.use(function (req, res, next) {
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    next();
 });
 
-app.post('/quotes', (req, res) => {
-    console.log('Req:', req.body)
+const SERVER_PORT = 8080;
+
+// DB
+const db = require('./db');
+const dbName = 'mfl_db';
+const collectionName = 'posts';
+const ObjectId = require('mongodb').ObjectId
+
+db.initialize(dbName, collectionName, (dbCollection) => {
+    // Fetching all items
+    dbCollection.find().toArray((err, res) => {
+        if (err) throw err;
+        console.log('Result:', res);
+    })
+
+    // Create
+    app.post('/posts', (request, response) => {
+        const post = request.body;
+        dbCollection.insertOne(post, (err, result) => {
+            if (err) throw err;
+            dbCollection.find().toArray((_err, _result) => {
+                if (_err) throw _err;
+                response.json(_result);
+            });
+        });
+    });
+
+    // Read one
+    app.get('/posts/:id', (request, response) => {
+        const postId = new ObjectId(request.params.id);
+        dbCollection.findOne({ _id: postId }, (err, result) => {
+            if (err) throw err;
+            response.json(result);
+        });
+    });
+
+    // Read all
+    app.get('/posts', (request, response) => {
+        dbCollection.find().toArray((err, result) => {
+            if (err) throw err;
+            response.json(result);
+        });
+    });
+
+    // Update
+    app.put('/posts/:id', (request, response) => {
+        const postId = new ObjectId(request.params.id);
+        const post = request.body;
+        console.log(`Editing post: ${postId} to be ${post}`);
+
+        dbCollection.updateOne({ _id: postId }, { $set: post }, (err, result) => {
+            if (err) throw err;
+            dbCollection.find().toArray((_err, _result) => {
+                if (_err) throw _err;
+                response.json(_result);
+            });
+        });
+    });
+
+    // Delete
+    app.delete('/posts/:id', (request, response) => {
+        const postId = new ObjectId(request.params.id);
+        console.log(`Delete post with id: ${postId}`);
+
+        dbCollection.deleteOne({ _id: postId }, (err, result) => {
+            if (err) throw err;
+            dbCollection.find().toArray((_err, _result) => {
+                if (_err) throw _err;
+                response.json(_result);
+            });
+        });
+    });
+
+}, err => {
+    throw (err);
 });
 
-// error handler
-app.use((err, req, res, next) => {
-    // set locals, only providing error in development
-    res.locals.message = err.message;
-    res.locals.error = req.app.get('env') === 'development' ? err : {};
-  
-    // render the error page
-    res.status(err.status || 500);
-    res.render('error');
-})
 
-module.exports = app;
+app.listen(SERVER_PORT, () => console.log(`Listening on port ${SERVER_PORT}`));
