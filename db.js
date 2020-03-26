@@ -1,6 +1,6 @@
 const MongoClient = require('mongodb').MongoClient;
 const config = require('./config');
-const DB_URL = `mongodb+srv://mfl_admin:${config.mongodb_pass}@myfantasylife-dev-bghip.gcp.mongodb.net/test?retryWrites=true&w=majority`
+const DB_URL = `mongodb+srv://${config.mongodb_user}:${config.mongodb_pass}@myfantasylife-dev-bghip.gcp.mongodb.net/test?retryWrites=true&w=majority`
 
 function initialize(
   dbName,
